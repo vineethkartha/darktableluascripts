@@ -14,8 +14,8 @@ def generate_caption(jpg_path):
     prompt = f"""
     For this photo: {jpg_path}
     1. Output a line starting with TAGS: followed by 10 short descriptive tags, comma-separated.
-    2. Output a line starting with CAPTION: with a short 1-line catchy caption.
-    3. Output a line starting with WRITEUP: with a 3-sentence writeup.
+    2. Output a line starting with CAPTION: with a short catchy caption.
+    3. Output a line starting with WRITEUP: with a 3 sentence writeup that is more based on realism.
     """
     result = subprocess.run(
         ["ollama", "run", "llava", prompt],
@@ -36,9 +36,14 @@ if __name__ == "__main__":
     output = generate_caption(jpg_file)
     print(output)
    
-    user_input = input("Would you like to [a]ccept, [e]edit or [r]egenerate the output: ")
+    user_input = input("Would you like to [a]ccept, [e]edit, [r]egenerate the output or [q]uit: ")
     while True:
-        if user_input.lower() == 'a':
+        if user_input.lower() == 'q':
+            output ="";
+            if os.path.exists(jpg_file):
+                os.remove(jpg_file)
+            sys.exit(0)
+        elif user_input.lower() == 'a':
             break
         elif user_input.lower() == 'e':
             temp_file = "temp_output.txt"
@@ -51,7 +56,7 @@ if __name__ == "__main__":
             output = generate_caption(jpg_file)
             print(output)
         else:
-            print("Invalid input. Please enter 'a', 'e', or 'r'.")
+            print("Invalid input. Please enter 'a', 'e', 'r' or 'q'.")
         
         user_input = input("Would you like to [a]ccept, [e]edit or [r]egenerate the output: ")
     # Delete temp JPG

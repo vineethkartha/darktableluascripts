@@ -137,7 +137,7 @@ dt.register_event(EVENT_NAME, -- event name (unique id)
                   EVENT_TYPE2, -- event type
                   function(event, image)
                     attach_tags_and_copyright({image})
-                  end, _("attach tags and copyright on import") -- label shown in Shortcuts prefs
+                  end, _("attach exif tags and copyright on import") -- label shown in Shortcuts prefs
 )
 
 return script_data

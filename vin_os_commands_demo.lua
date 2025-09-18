@@ -40,17 +40,16 @@ end
 -- script_manager
 script_data.destroy = destroy
 
-local function run_acommand(images)
-    if #images ~= 1 then
-        dt.print("Select only one image")
-        return
-    end
-    for _, img in ipairs(images) do
-        dt.print("Converting: " .. (img.path) .. "/" .. (img.filename ))
-  end
+local function run_acommand()
+    local cmd = "dir"
+    local handle = io.popen(cmd)
+    dt.print_log("Command executed")
+    local result = handle:read("*a")
+    handle:close()
+    dt.print_log("Result: " .. result)
 end
 
-run_acommand(dt.gui.selection())
+run_acommand()
 -- defensive cleanup: remove any previous registration with the same name/type
 pcall(dt.destroy_event, EVENT_NAME, EVENT_TYPE)
 
