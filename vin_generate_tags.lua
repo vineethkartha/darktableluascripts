@@ -38,6 +38,12 @@ end
 -- script_manager
 script_data.destroy = destroy
 
+--- Converts the given image to a temporary JPEG file.
+-- This function creates a temporary file with a ".jpg" extension,
+-- exports the provided image to this file in JPEG format using Darktable's export functionality,
+-- and logs the export process. The path to the temporary JPEG file is returned.
+-- @param image The image object to be exported as a JPEG.
+-- @return string The file path to the temporary JPEG image.
 local function convert_to_temp_jpg(image)
     local temp_file = os.tmpname() .. ".jpg"
     local jpeg_exporter = dt.new_format("jpeg")
@@ -47,11 +53,18 @@ local function convert_to_temp_jpg(image)
     return temp_file
 end
 
+--- Parses the output string to extract tags, caption, and writeup sections.
+-- The expected format of the output string is:
+-- "TAGS: tag1, tag2, ... CAPTION: some caption WRITEUP: some writeup"
+--
+-- @param output string: The input string containing the sections to parse.
+-- @return table: A table (array) of tags extracted from the TAGS section.
+-- @return string: The caption extracted from the CAPTION section.
+-- @return string: The writeup extracted from the WRITEUP section.
 local function parse_result(output)
     local tags = {}
     local caption = ""
     local writeup = ""
-
     -- Extract TAGS
     local tags_section = output:match("TAGS:%s*(.-)%s*CAPTION:")
     if tags_section then
@@ -72,29 +85,91 @@ local function parse_result(output)
     return tags, caption, writeup
 end
 
+--[[
+  Sanitizes a given tag string by performing the following operations:
+  1. Converts all characters in the tag to lowercase.
+  2. Removes all special characters, retaining only alphanumeric characters and underscores.
+  3. Trims leading and trailing whitespace from the tag.
+
+  @param tag (string): The input tag string to be sanitized.
+  @return (string): The sanitized tag string, suitable for use as a standardized identifier.
+]]
+local function sanitize_tag(tag)
+    -- Convert to lowercase
+    tag = tag:lower()
+    -- Remove special characters, keep only alphanumeric and underscores
+    tag = tag:gsub("[^%w_]", "")
+    -- Trim whitespace
+    tag = tag:match("^%s*(.-)%s*$")
+    return tag
+end
+
+--[[
+  Attaches a list of tags to a given image.
+
+  Parameters:
+    image (dt.image_t): The image object to which tags will be attached.
+    tags (table): A list (array) of tag strings to be sanitized, created (if not existing), and attached to the image.
+
+  Behavior:
+    - Each tag in the provided list is sanitized using the sanitize_tag function.
+    - For each sanitized tag, attempts to create the tag or fetch it if it already exists.
+    - Attaches each tag object to the specified image.
+    - Logs the operation, listing all tags attached to the image.
+]]
 local function attach_tags_to_image(image, tags)
     for _, tag in ipairs(tags) do
-        dt.print_log("Attaching tag " .. tag .. " to image " .. image.filename)
+        tag = sanitize_tag(tag)
         local dt_tag = dt.tags.create(tag) -- create or fetch existing tag    
         dt.tags.attach(dt_tag, image) -- attach tag object to image
     end
     dt.print_log("Attached tags to image: " .. table.concat(tags, ", "))
 end
 
+--[[
+  Adds a title to the specified image object.
+
+  @param image (table) The image object to which the title will be assigned. 
+            It is expected to have at least a 'filename' property for logging.
+  @param title (string) The title to set for the image.
+
+  This function sets the 'title' property of the image object to the provided title string,
+  and logs the operation using dt.print_log, including the image's filename and the new title.
+]]
 local function add_title_to_image(image, title)
     image.title = title
     dt.print_log("Set title for image " .. image.filename .. " to: " .. title)
 end
 
+--[[
+  Adds a description to the specified image object.
+
+  @param image (table) The image object to which the description will be added.
+  @param description (string) The description text to set for the image.
+
+  This function sets the 'description' field of the given image object to the provided description string.
+  It also logs the action, including the image's filename and the new description, using dt.print_log.
+]]
 local function add_description_to_image(image, description)
     image.description = description
     dt.print_log("Set description for image " .. image.filename .. " to: " .. description)
 end
 
-local function generate_tags_title_description_with_ai(image)
-    local jpegfile = convert_to_temp_jpg(image)
-    local prompt =
-        "You are an expert in image recognition and tagging. Generate a catchy title and generate single word relevant tags. Format the output as: TAGS: tag1, tag2, tag3 CAPTION: A catchy title WRITEUP: A brief writeup about the image. "
+--[[
+  Generates tags, a catchy title, and a brief description for a given JPEG image using an AI language model.
+
+  This function constructs a prompt for an image recognition and tagging task, then calls an external LLM (Large Language Model)
+  via the `ollama` command-line tool to analyze the specified image file. The AI is instructed to return single-word tags,
+  a catchy caption, and a brief writeup about the image, all formatted in a specific way. The function logs the command execution
+  and output, then parses and returns the result.
+
+  @param jpegfile (string): The file path to the JPEG image to be analyzed.
+  @return (table): The parsed result containing tags, caption, and writeup generated by the AI.
+]]
+local function generate_tags_title_description_with_ai(jpegfile)
+    local prompt = "You are an expert in image recognition and tagging." ..
+                       " Generate a catchy title and generate single word relevant tags and rate the image for overall appeal." ..
+                       " Format the output as: TAGS: tag1, tag2, tag3 CAPTION: A catchy title WRITEUP: A brief writeup about the image."
     local LLM = "gemma3:4b"
     local cmd = "ollama run " .. LLM .. " " .. prompt .. " " .. jpegfile
     dt.print_log("Running command: " .. cmd)
@@ -102,26 +177,50 @@ local function generate_tags_title_description_with_ai(image)
     dt.print_log("Command executed")
     local result = handle:read("*a")
     handle:close()
-    os.remove(jpegfile) -- clean up the temp file
+    dt.print("Tags and title generated")
     dt.print_log("Output: " .. result)
     return parse_result(result)
 end
 
+--[[
+  Generates AI-based tags and a title for a single selected image, attaches them to the image,
+  and cleans up any temporary files created during the process.
+
+  Parameters:
+    images (table): A table containing image objects. Only one image should be selected.
+
+  Workflow:
+    1. Checks if exactly one image is selected; if not, notifies the user and exits.
+    2. For the selected image:
+      - Prints a message indicating processing has started.
+      - Converts the image to a temporary JPEG file for AI processing.
+      - Uses AI to generate tags, a caption (title), and a writeup (description).
+      - Attaches the generated tags to the image.
+      - Adds the generated caption as the image's title.
+      - (Optional) Adds the writeup as the image's description (currently commented out).
+      - Removes the temporary JPEG file to clean up.
+
+  Note:
+    - The functions `convert_to_temp_jpg`, `generate_tags_title_description_with_ai`,
+      `attach_tags_to_image`, and `add_title_to_image` are assumed to be defined elsewhere.
+    - The function currently only supports processing one image at a time.
+--]]
 local function generate_and_attach(images)
     if #images ~= 1 then
         dt.print("Select only one image")
         return
     end
     for _, img in ipairs(images) do
-        dt.print("Converting: " .. (img.path) .. "/" .. (img.filename))
+        dt.print("Generating tags and title for: " .. (img.path) .. "/" .. (img.filename))
+        local jpegfile = convert_to_temp_jpg(img)
         local tags, caption, writeup = generate_tags_title_description_with_ai(img)
         attach_tags_to_image(img, tags)
         add_title_to_image(img, caption)
         -- add_description_to_image(img, writeup)
+        os.remove(jpegfile) -- clean up the temp file
+
     end
 end
-
--- local function generate_
 
 -- defensive cleanup: remove any previous registration with the same name/type
 pcall(dt.destroy_event, EVENT_NAME, EVENT_TYPE)
