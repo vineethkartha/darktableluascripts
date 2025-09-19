@@ -1,7 +1,6 @@
 local dt = require "darktable"
 local du = require "lib/dtutils"
-local df = require "lib/dtutils.file"
-local dsys = require "lib/dtutils.system"
+local utils = require "darktableluascripts/utilities"
 
 local MODULE_NAME = "AITagGenerator" -- make sure this is unique, no spaces, no special characters   
 local EVENT_NAME = "AItaggenerator" -- must be unique for this script
@@ -38,21 +37,6 @@ end
 -- script_manager
 script_data.destroy = destroy
 
---- Converts the given image to a temporary JPEG file.
--- This function creates a temporary file with a ".jpg" extension,
--- exports the provided image to this file in JPEG format using Darktable's export functionality,
--- and logs the export process. The path to the temporary JPEG file is returned.
--- @param image The image object to be exported as a JPEG.
--- @return string The file path to the temporary JPEG image.
-local function convert_to_temp_jpg(image)
-    local temp_file = os.tmpname() .. ".jpg"
-    local jpeg_exporter = dt.new_format("jpeg")
-    dt.print_log("Exporting: " .. temp_file)
-    jpeg_exporter:write_image(image, temp_file, true)
-    dt.print_log("Exported to: " .. temp_file)
-    return temp_file
-end
-
 --- Parses the output string to extract tags, caption, and writeup sections.
 -- The expected format of the output string is:
 -- "TAGS: tag1, tag2, ... CAPTION: some caption WRITEUP: some writeup"
@@ -61,10 +45,8 @@ end
 -- @return table: A table (array) of tags extracted from the TAGS section.
 -- @return string: The caption extracted from the CAPTION section.
 -- @return string: The writeup extracted from the WRITEUP section.
-local function parse_result(output)
+local function parse_tags_title(output)
     local tags = {}
-    local caption = ""
-
     -- Extract TAGS
     local tags_section = output:match("TAGS:%s*(.-)%s*CAPTION:")
     if tags_section then
@@ -73,8 +55,9 @@ local function parse_result(output)
         end
     end
 
-    -- Extract CAPTION
-    caption = output:match("CAPTION:%s*(.-)%s*WRITEUP:") or ""
+    -- Extract text after CAPTION:
+    local caption = output:match("CAPTION:%s*(.*)")
+
     -- Clean up caption: keep only alphanumeric characters and spaces
     caption = caption:gsub("[^%w%s]", "")
     -- Extract WRITEUP
@@ -85,26 +68,6 @@ local function parse_result(output)
     -- dt.print_log("Parsed Writeup: " .. writeup)
     return tags, caption
 end
-
---[[
-  Sanitizes a given tag string by performing the following operations:
-  1. Converts all characters in the tag to lowercase.
-  2. Removes all special characters, retaining only alphanumeric characters and underscores.
-  3. Trims leading and trailing whitespace from the tag.
-
-  @param tag (string): The input tag string to be sanitized.
-  @return (string): The sanitized tag string, suitable for use as a standardized identifier.
-]]
-local function sanitize_tag(tag)
-    -- Convert to lowercase
-    tag = tag:lower()
-    -- Remove special characters, keep only alphanumeric and underscores
-    tag = tag:gsub("[^%w_]", "")
-    -- Trim whitespace
-    tag = tag:match("^%s*(.-)%s*$")
-    return tag
-end
-
 --[[
   Attaches a list of tags to a given image.
 
@@ -121,7 +84,7 @@ end
 local function attach_tags_to_image(image, tags)
     for _, tag in ipairs(tags) do
         dt.print_log("Processing tag: " .. tag)
-        tag = sanitize_tag(tag)
+        tag = utils.sanitize_text(tag)
         if tag == "" then
             dt.print_log("Skipping empty tag after sanitization")
             goto continue
@@ -179,16 +142,11 @@ local function generate_tags_title_description_with_ai(jpegfile)
                        " Generate a catchy title and generate single word relevant tags and rate the image for overall appeal." ..
                        " Format the output as: TAGS: tag1, tag2, tag3 CAPTION: A catchy title for social media"
     local LLM = "gemma3:4b"
-    local cmd = "ollama run " .. LLM .. " " .. prompt .. " " .. jpegfile
-    dt.print_log("Running command: " .. cmd)
-    dt.print("Running ollama...")
-    local handle = io.popen(cmd)
-    dt.print_log("Command executed")
-    local result = handle:read("*a")
-    handle:close()
+    local result = utils.call_ollama(LLM, prompt, jpegfile)
     dt.print("Tags and title generated")
+    dt.print_hinter("Tags and title generated")
     dt.print_log("Output: " .. result)
-    return parse_result(result)
+    return parse_tags_title(result)
 end
 
 --[[
@@ -215,13 +173,9 @@ end
     - The function currently only supports processing one image at a time.
 --]]
 local function generate_and_attach(images)
-    if #images ~= 1 then
-        dt.print("Select only one image")
-        return
-    end
     for _, img in ipairs(images) do
         dt.print_toast("Generating tags and title for: " .. (img.path) .. "/" .. (img.filename))
-        local jpegfile = convert_to_temp_jpg(img)
+        local jpegfile = utils.convert_to_temp_jpg(img)
         dt.print_hinter("Generated temp file: " .. jpegfile)
         local tags, caption = generate_tags_title_description_with_ai(jpegfile)
         attach_tags_to_image(img, tags)
