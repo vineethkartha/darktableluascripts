@@ -64,7 +64,7 @@ end
 local function parse_result(output)
     local tags = {}
     local caption = ""
-    local writeup = ""
+
     -- Extract TAGS
     local tags_section = output:match("TAGS:%s*(.-)%s*CAPTION:")
     if tags_section then
@@ -75,14 +75,15 @@ local function parse_result(output)
 
     -- Extract CAPTION
     caption = output:match("CAPTION:%s*(.-)%s*WRITEUP:") or ""
-
+    -- Clean up caption: keep only alphanumeric characters and spaces
+    caption = caption:gsub("[^%w%s]", "")
     -- Extract WRITEUP
-    writeup = output:match("WRITEUP:%s*(.*)") or ""
+    -- writeup = output:match("WRITEUP:%s*(.*)") or ""
 
     dt.print_log("Parsed Tags: " .. table.concat(tags, ", "))
     dt.print_log("Parsed Caption: " .. caption)
-    dt.print_log("Parsed Writeup: " .. writeup)
-    return tags, caption, writeup
+    -- dt.print_log("Parsed Writeup: " .. writeup)
+    return tags, caption
 end
 
 --[[
@@ -119,9 +120,16 @@ end
 ]]
 local function attach_tags_to_image(image, tags)
     for _, tag in ipairs(tags) do
+        dt.print_log("Processing tag: " .. tag)
         tag = sanitize_tag(tag)
-        local dt_tag = dt.tags.create(tag) -- create or fetch existing tag    
-        dt.tags.attach(dt_tag, image) -- attach tag object to image
+        if tag == "" then
+            dt.print_log("Skipping empty tag after sanitization")
+            goto continue
+        else
+            local dt_tag = dt.tags.create(tag) -- create or fetch existing tag    
+            dt.tags.attach(dt_tag, image) -- attach tag object to image
+        end
+        ::continue::
     end
     dt.print_log("Attached tags to image: " .. table.concat(tags, ", "))
 end
@@ -173,6 +181,7 @@ local function generate_tags_title_description_with_ai(jpegfile)
     local LLM = "gemma3:4b"
     local cmd = "ollama run " .. LLM .. " " .. prompt .. " " .. jpegfile
     dt.print_log("Running command: " .. cmd)
+    dt.print("Running ollama...")
     local handle = io.popen(cmd)
     dt.print_log("Command executed")
     local result = handle:read("*a")
@@ -211,9 +220,10 @@ local function generate_and_attach(images)
         return
     end
     for _, img in ipairs(images) do
-        dt.print("Generating tags and title for: " .. (img.path) .. "/" .. (img.filename))
+        dt.print_toast("Generating tags and title for: " .. (img.path) .. "/" .. (img.filename))
         local jpegfile = convert_to_temp_jpg(img)
-        local tags, caption, writeup = generate_tags_title_description_with_ai(img)
+        dt.print_hinter("Generated temp file: " .. jpegfile)
+        local tags, caption = generate_tags_title_description_with_ai(jpegfile)
         attach_tags_to_image(img, tags)
         add_title_to_image(img, caption)
         -- add_description_to_image(img, writeup)
