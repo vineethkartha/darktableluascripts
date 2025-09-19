@@ -15,3 +15,4 @@ This will also add the copyright line to your images.
 This script will use ollama installed locally to generate tags and a title for selected image
 Install ollama and gemma3:4b in your local machine and then install the script.
 To run the script associate a keyboard shortcut to the script and select an image and trigger the script
+This script has been influenced by https://github.com/AyedaOk/DT_custom_script/blob/main/AI_toolbox.lua
