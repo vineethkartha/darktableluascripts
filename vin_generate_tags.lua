@@ -177,7 +177,7 @@ end
 local function generate_tags_title_description_with_ai(jpegfile)
     local prompt = "You are an expert in image recognition and tagging." ..
                        " Generate a catchy title and generate single word relevant tags and rate the image for overall appeal." ..
-                       " Format the output as: TAGS: tag1, tag2, tag3 CAPTION: A catchy title WRITEUP: A brief writeup about the image."
+                       " Format the output as: TAGS: tag1, tag2, tag3 CAPTION: A catchy title for social media"
     local LLM = "gemma3:4b"
     local cmd = "ollama run " .. LLM .. " " .. prompt .. " " .. jpegfile
     dt.print_log("Running command: " .. cmd)
