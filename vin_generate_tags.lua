@@ -59,7 +59,12 @@ local function parse_tags_title(output)
     local caption = output:match("CAPTION:%s*(.*)")
 
     -- Clean up caption: keep only alphanumeric characters and spaces
-    caption = caption:gsub("[^%w%s]", "")
+    if caption then
+        caption = caption:gsub("[^%w%s]", "") -- remove non-alphanumeric characters except spaces
+    else
+        caption = "Untitled"
+    end
+    caption = caption:match("^%s*(.-)%s*$") -- trim leading/trailing whitespace
     -- Extract WRITEUP
     -- writeup = output:match("WRITEUP:%s*(.*)") or ""
 
@@ -173,23 +178,23 @@ end
     - The function currently only supports processing one image at a time.
 --]]
 local function generate_and_attach(images)
-    local job = dt.gui.create_job('Attaching tags and copyright to ' .. #images .. " images", true)
+    local job = dt.gui.create_job('Generating tags and titles for ' .. #images .. " images", true)
+    --[[
     if #images ~= 1 then
         dt.print("Please select exactly one image to generate tags and title.")
         dt.print_hinter("Please select exactly one image to generate tags and title.")
         return
     end
-    for _, img in ipairs(images) do
+    ]]
+    job.percent = 0
+    for idx, img in ipairs(images) do
         dt.print_toast("Generating tags and title for: " .. (img.path) .. "/" .. (img.filename))
-        job.percent = 0
+        job.percent = idx / #images
         local jpegfile = utils.convert_to_temp_jpg(img)
-        job.percent = 1 / 4
         dt.print_hinter("Generated temp file: " .. jpegfile)
         local tags, caption = generate_tags_title_description_with_ai(jpegfile)
-        job.percent = 3 / 4
         attach_tags_to_image(img, tags)
         add_title_to_image(img, caption)
-        job.percent = 1
         -- add_description_to_image(img, writeup)
         os.remove(jpegfile) -- clean up the temp file
     end
