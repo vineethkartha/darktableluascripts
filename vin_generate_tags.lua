@@ -194,7 +194,7 @@ local function generate_and_attach(images)
         dt.print_hinter("Generated temp file: " .. jpegfile)
         local tags, caption = generate_tags_title_description_with_ai(jpegfile)
         attach_tags_to_image(img, tags)
-        add_title_to_image(img, caption)
+        -- add_title_to_image(img, caption)
         -- add_description_to_image(img, writeup)
         os.remove(jpegfile) -- clean up the temp file
     end
@@ -208,7 +208,7 @@ dt.register_event(EVENT_NAME, -- event name (unique id)
 EVENT_TYPE, -- event type
 function(event, shortcut)
     generate_and_attach(dt.gui.selection())
-end, _("attach AI tags and title to the images") -- label shown in Shortcuts prefs
+end, _("Attach AI generated tags to the images") -- label shown in Shortcuts prefs
 )
 
 return script_data
