@@ -1,6 +1,6 @@
 local dt = require "darktable"
 local du = require "lib/dtutils"
-local utils = require "darktableluascripts/utilities"
+local utils = require "darktableluascripts/lib/utilities"
 
 local MODULE_NAME = "AITagGenerator" -- make sure this is unique, no spaces, no special characters   
 local EVENT_NAME = "AItaggenerator" -- must be unique for this script
@@ -144,8 +144,8 @@ end
 ]]
 local function generate_tags_title_description_with_ai(jpegfile)
     local prompt = "You are an expert in image recognition and tagging." ..
-                       " Generate a catchy title and generate single word relevant tags and rate the image for overall appeal." ..
-                       " Format the output as: TAGS: tag1, tag2, tag3 CAPTION: A catchy title for social media"
+                       " Generate generate single word relevant tags." ..
+                       " Format the output as: TAGS: tag1, tag2, tag3"
     local LLM = "gemma3:4b"
     local result = utils.call_ollama(LLM, prompt, jpegfile)
     dt.print("Tags and title generated")
@@ -194,7 +194,7 @@ local function generate_and_attach(images)
         dt.print_hinter("Generated temp file: " .. jpegfile)
         local tags, caption = generate_tags_title_description_with_ai(jpegfile)
         attach_tags_to_image(img, tags)
-        add_title_to_image(img, caption)
+        -- add_title_to_image(img, caption)
         -- add_description_to_image(img, writeup)
         os.remove(jpegfile) -- clean up the temp file
     end
@@ -208,7 +208,7 @@ dt.register_event(EVENT_NAME, -- event name (unique id)
 EVENT_TYPE, -- event type
 function(event, shortcut)
     generate_and_attach(dt.gui.selection())
-end, _("attach AI tags and title to the images") -- label shown in Shortcuts prefs
+end, _("Attach AI generated tags to the images") -- label shown in Shortcuts prefs
 )
 
 return script_data

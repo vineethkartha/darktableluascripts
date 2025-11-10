@@ -3,8 +3,7 @@ local du = require "lib/dtutils"
 
 local MODULE_NAME = "ExifTAGAndCopyrightGenerator" -- make sure this is unique, no spaces, no special characters   
 local EVENT_NAME = "exiftagandcopyrightgenerator" -- must be unique for this script
-local EVENT_TYPE1 = "shortcut" -- the event we want (keyboard shortcut)
-local EVENT_TYPE2 = "post-import-image" -- the event we want (keyboard shortcut)
+local EVENT_TYPE = "shortcut" -- the event we want (keyboard shortcut)
 
 du.check_min_api_version("7.0.0", MODULE_NAME)
 
@@ -28,8 +27,7 @@ script_data.metadata = {
 -- script_manager integration to allow a script to be removed
 -- without restarting darktable
 local function destroy()
-    dt.destroy_event(EVENT_NAME, EVENT_TYPE1)
-    dt.destroy_event(EVENT_NAME, EVENT_TYPE2)
+    dt.destroy_event(EVENT_NAME, EVENT_TYPE)
     dt.print_log("Cleaned up " .. EVENT_NAME)
 end
 
@@ -38,15 +36,13 @@ end
 -- script_manager
 script_data.destroy = destroy
 
-
-
 --- Generates a list of tags from the EXIF data of an image.
 -- Extracts the camera model, lens information, and a folder identifier from the image's path and EXIF metadata.
 -- All spaces in the generated tags are replaced with underscores.
 -- @param image table: An image object containing EXIF metadata and a file path.
 -- @return table: A list of tags (strings) derived from the image's EXIF model, lens, and folder.
 local function generate_tags_from_exif(image)
-    
+
     -- Get location/occasion based on the folder name to be added as tag
     -- This is possible because I use a naming convention for my folders
     -- Extract the last folder name from the image path
@@ -61,12 +57,12 @@ local function generate_tags_from_exif(image)
     local full_lens_name = image.exif_lens
     local exif_model = image.exif_model or ""
     local short_lens_name = full_lens_name and (full_lens_name:match("^(.-)mm") or full_lens_name) or ""
-    
+
     local camera_maker = image.exif_maker or ""
     -- Create tags list based on the information extracted
     local tags = {camera_maker, exif_model, short_lens_name, location}
-     -- replace all spaces with _
-     -- replace all spaces with _
+    -- replace all spaces with _
+    -- replace all spaces with _
     for index, tag in ipairs(tags) do
         if tag ~= nil then
             tags[index] = tag:gsub("%s+", "_")
@@ -80,7 +76,6 @@ local function generate_tags_from_exif(image)
     return tags
 end
 
-
 local function add_copyright_to_image(image)
     local exif_date_time = image.exif_datetime_taken
     if not exif_date_time then
@@ -93,7 +88,7 @@ local function add_copyright_to_image(image)
     else
         yy = os.date("%Y") -- fallback to current year if EXIF date is not available      
     end
-    local copyright_info = "Copyright "  .. yy .. " Vineeth Kartha. All rights reserved."
+    local copyright_info = "Copyright " .. yy .. " Vineeth Kartha. All rights reserved."
     dt.print_log("Image rights " .. copyright_info)
     image.rights = copyright_info
 end
@@ -108,9 +103,9 @@ local function generate_exif_tags_and_attach(image)
 end
 
 local function attach_tags_and_copyright(images)
-    local job = dt.gui.create_job('Attaching tags and copyright to '.. #images .. " images", true)
+    local job = dt.gui.create_job('Attaching tags and copyright to ' .. #images .. " images", true)
     for index, image in ipairs(images) do
-        job.percent = index/#images
+        job.percent = index / #images
         dt.print_log(job.percent)
         generate_exif_tags_and_attach(image)
         add_copyright_to_image(image)
@@ -121,23 +116,16 @@ local function attach_tags_and_copyright(images)
 
 end
 -- remove this code after debugging
---attach_tags_and_copyright(dt.gui.selection())
+-- attach_tags_and_copyright(dt.gui.selection())
 
 -- defensive cleanup: remove any previous registration with the same name/type
-pcall(dt.destroy_event, EVENT_NAME, EVENT_TYPE1)
+pcall(dt.destroy_event, EVENT_NAME, EVENT_TYPE)
 
 dt.register_event(EVENT_NAME, -- event name (unique id)
-                  EVENT_TYPE1, -- event type
-                  function(event, shortcut)
-                        attach_tags_and_copyright(dt.gui.selection())
-                  end, _("attach tags and copyright") -- label shown in Shortcuts prefs
-)
-
-dt.register_event(EVENT_NAME, -- event name (unique id)
-                  EVENT_TYPE2, -- event type
-                  function(event, image)
-                    attach_tags_and_copyright({image})
-                  end, _("attach exif tags and copyright on import") -- label shown in Shortcuts prefs
+EVENT_TYPE, -- event type
+function(event, shortcut)
+    attach_tags_and_copyright(dt.gui.selection())
+end, _("attach tags and copyright") -- label shown in Shortcuts prefs
 )
 
 return script_data
