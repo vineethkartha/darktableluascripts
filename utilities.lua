@@ -10,6 +10,7 @@ local UTILS = {}
 function UTILS.convert_to_temp_jpg(image)
     local temp_file = os.tmpname() .. ".jpg"
     local jpeg_exporter = dt.new_format("jpeg")
+    jpeg_exporter.quality = 50
     dt.print_log("Exporting: " .. temp_file)
     jpeg_exporter:write_image(image, temp_file, true)
     dt.print_log("Exported to: " .. temp_file)
