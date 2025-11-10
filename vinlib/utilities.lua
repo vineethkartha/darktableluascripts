@@ -1,3 +1,8 @@
+--[[
+title: My Utility Module
+description: Internal helper functions for other scripts
+hidden: true
+]] 
 local dt = require "darktable"
 
 local UTILS = {}

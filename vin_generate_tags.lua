@@ -1,6 +1,6 @@
 local dt = require "darktable"
 local du = require "lib/dtutils"
-local utils = require "darktableluascripts/utilities"
+local utils = require "darktableluascripts/vinlib/utilities"
 
 local MODULE_NAME = "AITagGenerator" -- make sure this is unique, no spaces, no special characters   
 local EVENT_NAME = "AItaggenerator" -- must be unique for this script
