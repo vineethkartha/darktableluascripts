@@ -8,6 +8,8 @@ local EVENT_TYPE = "shortcut" -- the event we want (keyboard shortcut)
 
 du.check_min_api_version("9.5.0", MODULE_NAME)
 
+local separator = dt.configuration.running_os == "windows" and "\\" or "/"
+
 -- https://www.darktable.org/lua-api/index.html#darktable_gettext
 local gettext = dt.gettext.gettext
 
@@ -74,7 +76,7 @@ local function readRatingFromXMPAndSetOnImage(images)
     end
     for _, image in ipairs(images) do
         dt.print_log("Reading XMP for image: " .. image.filename)
-        local xmpFile = image.path .. "\\" .. image.filename .. ".xmp"
+        local xmpFile = image.path .. separator .. image.filename .. ".xmp"
         dt.print_log("XMP file path: " .. xmpFile)
         local xmpText = readXMPFile(xmpFile)
         local rating = extractRating(xmpText) or 0
