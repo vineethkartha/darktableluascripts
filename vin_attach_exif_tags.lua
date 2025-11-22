@@ -125,7 +125,7 @@ dt.register_event(EVENT_NAME, -- event name (unique id)
 EVENT_TYPE, -- event type
 function(event, shortcut)
     attach_tags_and_copyright(dt.gui.selection())
-end, _("attach tags and copyright") -- label shown in Shortcuts prefs
+end, _("attach tags from exif and copyright") -- label shown in Shortcuts prefs
 )
 
 return script_data
