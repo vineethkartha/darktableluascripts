@@ -19,7 +19,7 @@ end
 local script_data = {}
 
 script_data.metadata = {
-    name = "AITagsGenerator",
+    name = "Generate tags with AI",
     purpose = "Generate appropriate tags for images with an LLM",
     author = "Vineeth Kartha",
     help = "abcd" -- this seems important

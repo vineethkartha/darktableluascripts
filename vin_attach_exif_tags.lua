@@ -18,7 +18,7 @@ end
 local script_data = {}
 
 script_data.metadata = {
-    name = _("ImageExifTags"),
+    name = _("Generate tags from EXIF"),
     purpose = _("Generate appropriate tags for images based on exif "),
     author = "Vineeth Kartha",
     help = "abcd" -- this seems important
