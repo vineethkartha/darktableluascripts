@@ -19,7 +19,7 @@ end
 local script_data = {}
 
 script_data.metadata = {
-    name = "Luanch FastRawViewer",
+    name = "Launch FastRawViewer",
     purpose = "Launch fastrawviewer on selected film",
     author = "Vineeth Kartha",
     help = "abcd" -- this seems important

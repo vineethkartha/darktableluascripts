@@ -76,7 +76,7 @@ local function readRatingFromXMPAndSetOnImage(images)
     end
     for _, image in ipairs(images) do
         dt.print_log("Reading XMP for image: " .. image.filename)
-        local xmpFile = image.path .. separator .. image.filename .. ".xmp"
+        local xmpFile = image.path .. separator .. image.filename .. ".XMP"
         dt.print_log("XMP file path: " .. xmpFile)
         local xmpText = readXMPFile(xmpFile)
         local rating = extractRating(xmpText) or 0

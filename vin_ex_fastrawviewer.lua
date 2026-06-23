@@ -19,7 +19,7 @@ end
 local script_data = {}
 
 script_data.metadata = {
-    name = "FastRawViewer Loader",
+    name = "FastRawViewer On Import",
     purpose = "Launch fastrawviewer on import",
     author = "Vineeth Kartha",
     help = "abcd" -- this seems important
