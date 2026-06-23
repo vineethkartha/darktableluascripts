@@ -2,8 +2,7 @@
 title: My Utility Module
 description: Internal helper functions for other scripts
 hidden: true
-]] 
-local dt = require "darktable"
+]] local dt = require "darktable"
 
 local UTILS = {}
 --- Converts the given image to a temporary JPEG file.
@@ -16,6 +15,9 @@ function UTILS.convert_to_temp_jpg(image)
     local temp_file = os.tmpname() .. ".jpg"
     local jpeg_exporter = dt.new_format("jpeg")
     jpeg_exporter.quality = 50
+    -- the image size setting was done to fix a hang in darktable 5.6
+    jpeg_exporter.max_width = image.width
+    jpeg_exporter.max_height = image.height
     dt.print_log("Exporting: " .. temp_file)
     jpeg_exporter:write_image(image, temp_file, true)
     dt.print_log("Exported to: " .. temp_file)
