@@ -52,10 +52,26 @@ local function launchfastrawviwer()
     end
     dt.print_log("Film path: " .. film.path)
     dt.print_toast("Launching FastRawViewer for film: " .. film.path)
-    local command = '"C:\\Program Files\\LibRaw\\FastRawViewer\\FastRawViewer.exe" "' .. film.path .. '"'
-    dt.print_log("Executing command: " .. command)
-    local result = dsys.windows_command(command)
 
+    -- 1. Detect the operating system using official API
+    local is_windows = (dt.configuration.running_os == "windows")
+    local command
+    
+    if is_windows then
+        -- 2. Windows path execution
+        command = '"C:\\Program Files\\LibRaw\\FastRawViewer\\FastRawViewer.exe" "' .. film.path .. '"'
+        
+        dt.print_log("Executing Windows command: " .. command)
+        local result = dsys.windows_command(command)
+    else
+        -- 3. Linux path execution (via Wine)
+        local home = os.getenv("HOME")
+        command = 'wine "' .. home .. '/.wine/drive_c/Program Files/LibRaw/FastRawViewer/FastRawViewer.exe" "' .. film.path .. '" &'
+        
+        dt.print_log("Executing Linux command: " .. command)
+        local result = os.execute(command)
+    end
+    
 end
 
 -- defensive cleanup: remove any previous registration with the same name/type

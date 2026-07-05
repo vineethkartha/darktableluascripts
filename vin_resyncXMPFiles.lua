@@ -77,6 +77,13 @@ local function readRatingFromXMPAndSetOnImage(images)
     for _, image in ipairs(images) do
         dt.print_log("Reading XMP for image: " .. image.filename)
         local xmpFile = image.path .. separator .. image.filename .. ".XMP"
+	local f = io.open(xmpFile, "r")
+	if f then
+    	   f:close() -- Uppercase file exists, keep it
+	else
+	   -- Fallback to lowercase if uppercase is missing
+    	   xmpFile = image.path .. separator .. image.filename .. ".xmp"
+	end
         dt.print_log("XMP file path: " .. xmpFile)
         local xmpText = readXMPFile(xmpFile)
         local rating = extractRating(xmpText) or 0
