@@ -1,6 +1,7 @@
 import os
 import shutil
 import glob
+import argparse
 from shinestacker import StackJob, CombinedActions, AlignFrames, BalanceFrames, FocusStack, PyramidStack
 
 def getUniqueName(filename):
@@ -90,20 +91,43 @@ def run_shinestacker_on_files(image_paths, output_directory, project_name, desir
 
     run_shine_stacker(temp_workspace, output_directory, project_name, desired_final_name)
     clean_up_workspace(temp_workspace)
-if __name__ == "__main__":
-    INPUT_FOLDER = "/mnt/ActiveWork/Photos_Library/Focus_Stacking/export"
-    # Pass exactly the files you want stacked
-    IMAGES_TO_STACK = [
-        "/mnt/ActiveWork/Photos_Library/Focus_Stacking/export/VIN_7317.tif",
-        "/mnt/ActiveWork/Photos_Library/Focus_Stacking/export/VIN_7318.tif",
-        "/mnt/ActiveWork/Photos_Library/Focus_Stacking/export/VIN_7319.tif"
-    ]
 
-    if os.path.exists(INPUT_FOLDER):
-        # Test for run_shine_stacker
-        #run_shine_stacker(INPUT_FOLDER, INPUT_FOLDER, "sample", "caterpillar")
-        # Test for run_shinestacker_on_files
-        run_shinestacker_on_files(IMAGES_TO_STACK,INPUT_FOLDER,"test","plainTiger")
-        
+
+#    INPUT_FOLDER = "/mnt/ActiveWork/Photos_Library/Focus_Stacking/export"
+#    # Pass exactly the files you want stacked
+#    IMAGES_TO_STACK = [
+#        "/mnt/ActiveWork/Photos_Library/Focus_Stacking/export/VIN_7317.tif",
+#        "/mnt/ActiveWork/Photos_Library/Focus_Stacking/export/VIN_7318.tif",
+#        "/mnt/ActiveWork/Photos_Library/Focus_Stacking/export/VIN_7319.tif"
+#    ]
+#
+#    
+#    if os.path.exists(INPUT_FOLDER):
+#        # Test for run_shine_stacker
+#        #run_shine_stacker(INPUT_FOLDER, INPUT_FOLDER, "sample", "caterpillar")
+#        # Test for run_shinestacker_on_files
+#        run_shinestacker_on_files(IMAGES_TO_STACK,INPUT_FOLDER,"test","plainTiger")
+#        
+#    else:
+#        print(f"Error: Input folder '{INPUT_FOLDER}' does not exist.")
+
+if __name__ == "__main__":
+    # Setup argument parser to catch the inputs from the Darktable Lua script
+    parser = argparse.ArgumentParser(description="Run Shine Stacker from Darktable.")
+    parser.add_argument("--name", required=True, help="Desired final output name")
+    parser.add_argument("--outdir", required=True, help="Directory to save the final file")
+    
+    # nargs='+' means it will accept a space-separated list of any number of files
+    parser.add_argument("images", nargs='+', help="List of image paths to stack")
+    
+    args = parser.parse_args()
+    
+    if os.path.exists(args.outdir):
+        run_shinestacker_on_files(
+            image_paths=args.images, 
+            output_directory=args.outdir, 
+            project_name="dt_stack_job", 
+            desired_final_name=args.name
+        )
     else:
-        print(f"Error: Input folder '{INPUT_FOLDER}' does not exist.")
+        print(f"Error: Output folder '{args.outdir}' does not exist.")

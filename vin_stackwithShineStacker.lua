@@ -1,117 +1,72 @@
 local dt = require "darktable"
-local du = require "lib/dtutils"
 
-local MODULE_NAME = "ButtonDemo"  -- make sure this is unique, no spaces, no special characters   
-
-du.check_min_api_version("7.0.0", MODULE_NAME) 
-
--- https://www.darktable.org/lua-api/index.html#darktable_gettext
-local gettext = dt.gettext.gettext
-
-local function _(msgid)
-    return gettext(msgid)
-end
-
--- return data structure for script_manager
-
-local script_data = {}
-
-script_data.metadata = {
-  name = "Button Demo",
-  purpose = "show how the button works",
-  author = "Vineeth Kartha",
-  help = "abcd" -- this seems important
+-- 1. Create the UI Widgets
+local name_entry = dt.new_widget("entry") {
+    tooltip = "Enter the desired final name",
+    text = "stacked_result"
 }
 
-script_data.destroy = nil -- function to destory the script
-script_data.destroy_method = nil -- set to hide for libs since we can't destroy them commpletely yet, otherwise leave as nil
-script_data.restart = nil -- how to restart the (lib) script after it's been hidden - i.e. make it visible again
-script_data.show = nil -- only required for libs since the destroy_method only hides them
+local stack_button = dt.new_widget("button") {
+    label = "Focus Stack",
+    tooltip = "Stack the selected images using Shine Stacker",
+    clicked_callback = function(widget)
+        -- Get currently selected images in the lighttable
+        local images = dt.gui.action_images
+        
+        if #images < 2 then
+            dt.print_error("Shine Stacker: Please select at least 2 images to stack.")
+            return
+        end
 
--- translation
+        local desired_name = name_entry.text
+        if desired_name == "" then
+            desired_name = "stacked_result"
+        end
 
--- declare a local namespace and a couple of variables we'll need to install the module
-local mE = {}
-mE.widgets = {}
-mE.event_registered = false  -- keep track of whether we've added an event callback or not
-mE.module_installed = false  -- keep track of whether the module is module_installed
+        -- Determine the output directory (defaulting to the folder of the first image)
+        local out_dir = images[1].path
+        
+        -- PATH CONFIGURATION: Update this if your python script is saved somewhere else
+        local PYTHON_BIN = "/home/vineeth/shinestacker_env/env/bin/python3.12"
+        local PYTHON_SCRIPT_PATH = "/home/vineeth/.config/darktable/lua/darktableluascripts/lib/shinestackscript.py" 
 
+        -- Build the list of file paths to pass to python
+        local file_args = ""
+        for _, img in ipairs(images) do
+            -- Enclose paths in quotes to handle folder names with spaces
+            local full_path = img.path .. "/" .. img.filename
+            file_args = file_args .. string.format(' "%s"', full_path)
+        end
 
-
-local function show_name(images)
-    if #images ~= 1 then
-        dt.print("Select only one image")
-        return
+        -- Construct the terminal command
+        local cmd = string.format('%s %s --name "%s" --outdir "%s" %s', 
+                                  PYTHON_BIN, PYTHON_SCRIPT_PATH, desired_name, out_dir, file_args)
+        
+        dt.print("Shine Stacker started... Darktable may pause while processing.")
+        
+        -- Execute the Python script
+        local result = os.execute(cmd)
+        
+        if result == 0 or result == true then
+            dt.print("Shine Stacker: Successfully stacked into " .. desired_name .. ".tif!")
+        else
+            dt.print_error("Shine Stacker: Failed. Please check the terminal/console for Python errors.")
+        end
     end
-    for _, img in ipairs(images) do
-        dt.print("Converting: " .. (img.path) .. "/" .. (img.filename ))
-  end
-end
---[[ We have to create the module in one of two ways depending on which view darktable starts
-     in.  In orker to not repeat code, we wrap the darktable.register_lib in a local function.
-  ]]
+}
 
-local function install_module()
-  if not mE.module_installed then
-    local button = dt.new_widget("button"){
-      label = _("ShowName"),
-      clicked_callback = function()
-        show_name(dt.gui.selection())
-      end
-    }
-    -- https://www.darktable.org/lua-api/index.html#darktable_register_lib
-    dt.register_lib(
-      MODULE_NAME,     -- Module name
-      "Button Demo",     -- name that is displayed in scripts manager
-      true,                -- expandable
-      false,               -- resetable
-      {[dt.gui.views.lighttable] = {"DT_UI_CONTAINER_PANEL_RIGHT_CENTER", 100}},   -- containers
-      -- https://www.darktable.org/lua-api/types_lua_box.html
-      button,
-      nil,-- view_enter
-      nil -- view_leave
-    )
-    mE.module_installed = true
-  end
-end
-
--- script_manager integration to allow a script to be removed
--- without restarting darktable
-local function destroy()
-    dt.gui.libs[MODULE_NAME].visible = false -- we haven't figured out how to destroy it yet, so we hide it for now
-end
-
-local function restart()
-    dt.gui.libs[MODULE_NAME].visible = true -- the user wants to use it again, so we just make it visible and it shows up in the UI
-end
-
-
--- ... and tell dt about it all
-if dt.gui.current_view().id == "lighttable" then -- make sure we are in lighttable view
-  install_module()  -- register the lib
-else
-  if not mE.event_registered then -- if we are not in lighttable view then register an event to signal when we might be
-    -- https://www.darktable.org/lua-api/index.html#darktable_register_event
-    dt.register_event(
-      MODULE_NAME, "view-changed",  -- we want to be informed when the view changes
-      function(event, old_view, new_view)
-        if new_view.name == "lighttable" and old_view.name == "darkroom" then  -- if the view changes from darkroom to lighttable
-          install_module()  -- register the lib
-         end
-      end
-    )
-    mE.event_registered = true  --  keep track of whether we have an event handler installed
-  end
-end
-
--- set the destroy routine so that script_manager can call it when
--- it's time to destroy the script and then return the data to 
--- script_manager
-script_data.destroy = destroy
-script_data.restart = restart  -- only required for lib modules until we figure out how to destroy them
-script_data.destroy_method = "hide" -- tell script_manager that we are hiding the lib so it knows to use the restart function
-script_data.show = restart  -- if the script was "off" when darktable exited, the module is hidden, so force it to show on start
-
-return script_data
--- vim: shiftwidth=2 expandtab tabstop=2 cindent syntax=lua
--- kate: hl Lua;
+-- 2. Register the module in the Lighttable UI
+dt.register_lib(
+    "shinestacker_gui",          -- unique module name
+    "Shine Stacker",             -- title shown in the Darktable UI
+    true,                        -- expandable
+    false,                       -- resettable
+    {[dt.gui.views.lighttable] = {"DT_UI_CONTAINER_PANEL_RIGHT_CENTER", 100}}, -- place in right panel
+    dt.new_widget("box") {
+        orientation = "vertical",
+        name_entry,
+        stack_button
+    },
+    nil, -- view_enter callback
+    nil  -- view_leave callback
+)
