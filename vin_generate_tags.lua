@@ -126,7 +126,7 @@ end
 local function generate_tags_with_ai(jpegfile)
     local prompt = "You are an expert in image recognition and tagging." .. " Generate single word relevant tags." ..
                        " Format the output as: TAGS: tag1, tag2, tag3"
-    local LLM = "gemma4"
+    local LLM = "gemma3:4b"
     local result = utils.call_ollama(LLM, prompt, jpegfile)
     dt.print("Tags and title generated")
     dt.print_hinter("Tags and title generated")
