@@ -6,6 +6,39 @@ local name_entry = dt.new_widget("entry") {
     text = "stacked_result"
 }
 
+-- ====================================================================
+-- Export Function (Returns a list of saved file paths)
+-- ====================================================================
+--- Exports an array of darktable images to a folder in TIFF format.
+-- @param image_list table Array of dt_lua_image_t objects to export.
+-- @param target_dir string The directory path where images will save.
+-- @return table List of absolute file paths to the newly created TIFF files.
+local function export_images_to_tiff(image_list)
+    local exported_paths = {}
+    
+    if not image_list or #image_list == 0 then
+        dt.print_log("Export canceled: Missing required arguments.")
+        return exported_paths
+    end    
+    
+    local tiff_format = dt.new_format("tiff")
+    tiff_format.bpp = 16
+    
+    for i, img in ipairs(image_list) do
+       tiff_format.max_width = img.width
+       tiff_format.max_height = img.height
+       local temp_file = os.tmpname() .. ".tif"
+
+       dt.print("exporting file#: " .. i ..  "/" .. #image_list .. " " .. temp_file)
+
+       -- Providing a valid job frame satisfies the core runtime parameters,
+       -- letting write_image process the underlying loop smoothly.
+       tiff_format:write_image(img, temp_file)       
+       table.insert(exported_paths, temp_file)       
+    end
+    return exported_paths
+end
+
 local stack_button = dt.new_widget("button") {
     label = "Focus Stack",
     tooltip = "Stack the selected images using Shine Stacker",
@@ -25,17 +58,27 @@ local stack_button = dt.new_widget("button") {
 
         -- Determine the output directory (defaulting to the folder of the first image)
         local out_dir = images[1].path
-        
-        -- PATH CONFIGURATION: Update this if your python script is saved somewhere else
-        local PYTHON_BIN = "/home/vineeth/shinestacker_env/env/bin/python3.12"
+
+	local converted_files = export_images_to_tiff(images)
+
+	
+	if #images ~= #converted_files then
+	   dt.print("Error: Export mismatch! Selected: " .. #images .. ", Converted: " .. #converted_files)
+	   dt.print_log("Exiting the script safely.")	   
+	   return 
+	end
+	
+	dt.print("converted all files  to tiff")
+
+	-- PATH CONFIGURATION: Update this if your python script is saved somewhere else
+        local PYTHON_BIN = "/home/vineeth/shinestacker/.venv/bin/python3.12"
         local PYTHON_SCRIPT_PATH = "/home/vineeth/.config/darktable/lua/darktableluascripts/lib/shinestackscript.py" 
 
         -- Build the list of file paths to pass to python
         local file_args = ""
-        for _, img in ipairs(images) do
+        for _, img in ipairs(converted_files) do
             -- Enclose paths in quotes to handle folder names with spaces
-            local full_path = img.path .. "/" .. img.filename
-            file_args = file_args .. string.format(' "%s"', full_path)
+            file_args = file_args .. string.format(' "%s"', img)
         end
 
         -- Construct the terminal command
@@ -48,10 +91,21 @@ local stack_button = dt.new_widget("button") {
         local result = os.execute(cmd)
         
         if result == 0 or result == true then
-            dt.print("Shine Stacker: Successfully stacked into " .. desired_name .. ".tif!")
+	   dt.print("Shine Stacker: Successfully stacked into " .. desired_name .. ".tif!")
         else
             dt.print_error("Shine Stacker: Failed. Please check the terminal/console for Python errors.")
         end
+	
+	local tif_path = out_dir .. "/" .. desired_name .. ".tif"
+
+	-- Import the file into the darktable database
+	local image_obj = dt.database.import(tif_path)
+
+	if image_obj then
+	   dt.print("Successfully imported: " .. tif_path)
+	else
+	   dt.print_error("Failed to import: " .. tif_path)
+	end
     end
 }
 
