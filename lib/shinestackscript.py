@@ -2,7 +2,7 @@ import os
 import shutil
 import glob
 import argparse
-from shinestacker import StackJob, CombinedActions, AlignFrames, BalanceFrames, FocusStack, PyramidStack
+from shinestacker import StackJob, CombinedActions, AlignFrames, BalanceFrames, FocusStackBunch, FocusStack, PyramidStack
 
 def getUniqueName(filename):
     counter = 1
@@ -44,12 +44,21 @@ def run_shine_stacker(input_directory, output_directory,project_name, desired_fi
     job = StackJob(name=project_name, working_path=input_directory, input_path=input_directory) 
 
     # 2. Configure alignment and illumination algorithms together
-    alignment_module = AlignFrames(transformation="rigid", reference_idx=0)
-    balance_module = BalanceFrames(method="mean_luminance")
+    alignment_module = AlignFrames()
+    balance_module = BalanceFrames()
     job.add_action(CombinedActions("pre_processing", [alignment_module, balance_module], delete_output_at_end=True))
-    
+
+    bunch_folder_name = f"{project_name}_bunches"
+    job.add_action(
+        FocusStackBunch(
+            bunch_folder_name,
+            PyramidStack(),
+            frames=12,
+            overlap=2
+        )
+    )
     # 3. Schedule the final Focus Stacking stage
-    blending_strategy = PyramidStack(levels=6)
+    blending_strategy = PyramidStack()
     job.add_action(FocusStack(project_name, blending_strategy))
     
     # 4. Execute the pipeline
@@ -82,10 +91,12 @@ def run_shinestacker_on_files(image_paths, output_directory, project_name, desir
     
     # 2. Stage the specific files into the isolated workspace
     print(f"Staging {len(image_paths)} images in temporary workspace...")
-    for img_path in image_paths:
+    for idx, img_path in enumerate(image_paths):
         if os.path.exists(img_path):
-            # shutil.copy2 preserves file metadata (timestamps, etc.)
-            shutil.copy2(img_path, temp_workspace)
+            # Enforce an explicit index prefix so ShineStacker reads them sequentially
+            ext = os.path.splitext(img_path)[1]
+            staged_filename = f"seq_{idx:04d}{ext}"
+            shutil.copy2(img_path, os.path.join(temp_workspace, staged_filename))
         else:
             print(f"Warning: Could not find '{img_path}'. Skipping.")
 

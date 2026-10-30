@@ -13,7 +13,7 @@ local name_entry = dt.new_widget("entry") {
 -- @param image_list table Array of dt_lua_image_t objects to export.
 -- @param target_dir string The directory path where images will save.
 -- @return table List of absolute file paths to the newly created TIFF files.
-local function export_images_to_tiff(image_list)
+local function export_images_to_tiff(image_list, desired_name)
     local exported_paths = {}
     
     if not image_list or #image_list == 0 then
@@ -23,11 +23,13 @@ local function export_images_to_tiff(image_list)
     
     local tiff_format = dt.new_format("tiff")
     tiff_format.bpp = 16
-    
+
+    local tmp_dir ="/tmp/shinestacker_export/" .. desired_name
+    os.execute(string.format('mkdir -p "%s"', tmp_dir))
     for i, img in ipairs(image_list) do
        tiff_format.max_width = img.width
        tiff_format.max_height = img.height
-       local temp_file = os.tmpname() .. ".tif"
+       local temp_file = string.format("%s/frame_%04d.tif", tmp_dir, i)
 
        dt.print("exporting file#: " .. i ..  "/" .. #image_list .. " " .. temp_file)
 
@@ -44,9 +46,9 @@ local stack_button = dt.new_widget("button") {
     tooltip = "Stack the selected images using Shine Stacker",
     clicked_callback = function(widget)
         -- Get currently selected images in the lighttable
-        local images = dt.gui.action_images
+        local raw_images = dt.gui.action_images
         
-        if #images < 2 then
+        if #raw_images < 2 then
             dt.print_error("Shine Stacker: Please select at least 2 images to stack.")
             return
         end
@@ -57,9 +59,17 @@ local stack_button = dt.new_widget("button") {
         end
 
         -- Determine the output directory (defaulting to the folder of the first image)
-        local out_dir = images[1].path
+        local out_dir = raw_images[1].path
 
-	local converted_files = export_images_to_tiff(images)
+	local images = {}
+	for _, img in ipairs(raw_images) do
+            table.insert(images, img)
+        end
+        table.sort(images, function(a, b)
+            return a.filename < b.filename
+        end)
+	
+	local converted_files = export_images_to_tiff(images, desired_name)
 
 	
 	if #images ~= #converted_files then
